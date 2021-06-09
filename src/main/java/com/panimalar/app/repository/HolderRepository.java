@@ -12,4 +12,5 @@ import com.panimalar.app.model.Account;
 public interface HolderRepository extends JpaRepository<Holder,Long>{
 	
 	public Optional<Holder> findByHolderAccount(Account account);
+	public Holder findByEmail(String email);
 }

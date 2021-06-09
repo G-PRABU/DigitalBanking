@@ -26,6 +26,8 @@ public class Account {
 
 	private boolean isActive;
 	
+	private boolean isVerified;
+	
 	public Long getAccountId() {
 		return accountId;
 	}
@@ -64,6 +66,14 @@ public class Account {
 
 	public void setActive(boolean isActive) {
 		this.isActive = isActive;
+	}
+
+	public boolean isVerified() {
+		return isVerified;
+	}
+
+	public void setVerified(boolean isVerified) {
+		this.isVerified = isVerified;
 	}
 	
 	
