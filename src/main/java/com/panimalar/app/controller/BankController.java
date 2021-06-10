@@ -56,9 +56,6 @@ public class BankController {
 	AuthorizationRepository authorizationRepository;
 	
 	@Autowired
-	NomineeRepository nomineeRepository;
-	
-	@Autowired
 	MoneyTransactionRepository transactionRepository;
 	
 	@Autowired
@@ -172,7 +169,7 @@ public class BankController {
 		holder.getAuthorization().setAuthorizationPass(bCryptPasswordEncoder.encode(secret));
 		holder.getHolderAccount().setAccountNumber(holder.getPhone());
 		holder.getHolderAccount().setActive(false);
-	    holder.getHolderAccount().setVerified(false);
+	    holder.getHolderAccount().setVerified(true);
 	    otpService.generateOtp(holder);
 	    accountRepository.save(holder.getHolderAccount());
 		authorizationRepository.save(holder.getAuthorization());
@@ -196,4 +193,38 @@ public class BankController {
 	public ResponseEntity<List<Branch>> getAllBranches() {
 		return ResponseEntity.ok(branchRepository.findAll());
 	}
+	
+	
+	
+	// Manager URL's
+	
+	@GetMapping("/api/manager/{id}/getActiveAccounts") 
+	public ResponseEntity<List<Account>> getActiveAccounts(@PathVariable Long id){
+		Branch branch = branchRepository.findByBranchManager(managerRepository.findById(id).get());
+		return ResponseEntity.ok(accountRepository.findByActive(branch.getBranchId()));
+	}
+	
+	@GetMapping("/api/manager/{id}/getNonActiveAccounts") 
+	public ResponseEntity<List<Account>> getNonActiveAccounts(@PathVariable Long id){
+		Branch branch = branchRepository.findByBranchManager(managerRepository.findById(id).get());
+		return ResponseEntity.ok(accountRepository.findByNonActive(branch.getBranchId()));
+	}
+	
+	@GetMapping("/api/manager/getHolder/{accountId}")
+	public ResponseEntity<Holder> viewHolder(@PathVariable Long accountId) {
+        return ResponseEntity.ok(holderRepository.findByHolderAccount(accountRepository.findById(accountId).get()).get());  		
+	}
+	
+	@PostMapping("/api/manager/setActive/{accountId}")
+	public ResponseEntity<HttpStatus> setActive(@PathVariable Long accountId) {
+		Account account = accountRepository.findById(accountId).get();
+		account.setActive(true);
+		accountRepository.save(account);
+		return ResponseEntity.ok(HttpStatus.OK);
+	}
+	
+	//Holder URL's
+	
+	
+	
 }

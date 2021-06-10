@@ -14,7 +14,7 @@ public class Branch {
 	@GeneratedValue(strategy=GenerationType.AUTO)
 	private Long branchId;
 	
-	private String brancName;
+	private String branchName;
 	
 	@OneToOne
 	@JoinColumn(name = "id")
@@ -28,12 +28,12 @@ public class Branch {
 		this.branchId = branchId;
 	}
 
-	public String getBrancName() {
-		return brancName;
+	public String getBranchName() {
+		return branchName;
 	}
 
-	public void setBrancName(String brancName) {
-		this.brancName = brancName;
+	public void setBranchName(String branchName) {
+		this.branchName = branchName;
 	}
 
 	public Manager getBranchManager() {
