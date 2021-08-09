@@ -3,6 +3,8 @@ package com.panimalar.app.controller;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.logging.Logger;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -11,9 +13,11 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -28,14 +32,19 @@ import com.panimalar.app.model.Holder;
 import com.panimalar.app.model.JWTRequest;
 import com.panimalar.app.model.JWTResponse;
 import com.panimalar.app.model.Manager;
+import com.panimalar.app.model.MoneyTransaction;
 import com.panimalar.app.repository.*;
 import com.panimalar.app.service.BankDetailService;
+import com.panimalar.app.service.NotificationMailService;
 import com.panimalar.app.service.OtpService;
 
 
 @RestController
+@CrossOrigin(origins = "http://localhost:4200")
 public class BankController {
 	
+	
+	private Logger logger = Logger.getLogger(BankController.class.getName());
 	
 	@Autowired 
 	AdminRepository adminRepository;
@@ -151,6 +160,13 @@ public class BankController {
 		return ResponseEntity.ok(branch);
 	}
 	
+	@PostMapping("/api/admin/sampleBranch")
+	public ResponseEntity<Branch> sampleBranch(@RequestBody Branch branch) {
+		branchRepository.save(branch);
+		return ResponseEntity.ok(branch);
+	}
+	
+	
 	@GetMapping("/api/admin/getAllManager")
 	public ResponseEntity<List<Manager>> getAllManagers() {
 		return ResponseEntity.ok(managerRepository.findAll());
@@ -198,15 +214,19 @@ public class BankController {
 	
 	// Manager URL's
 	
-	@GetMapping("/api/manager/{id}/getActiveAccounts") 
-	public ResponseEntity<List<Account>> getActiveAccounts(@PathVariable Long id){
-		Branch branch = branchRepository.findByBranchManager(managerRepository.findById(id).get());
+	@GetMapping("/api/manager/getActiveAccounts") 
+	public ResponseEntity<List<Account>> getActiveAccounts(Authentication authentication){
+		String username = authentication.getName();
+		Manager manager = managerRepository.findByEmail(username).get();
+		Branch branch = branchRepository.findByBranchManager(managerRepository.findById(manager.getId()).get());
 		return ResponseEntity.ok(accountRepository.findByActive(branch.getBranchId()));
 	}
 	
-	@GetMapping("/api/manager/{id}/getNonActiveAccounts") 
-	public ResponseEntity<List<Account>> getNonActiveAccounts(@PathVariable Long id){
-		Branch branch = branchRepository.findByBranchManager(managerRepository.findById(id).get());
+	@GetMapping("/api/manager/getNonActiveAccounts") 
+	public ResponseEntity<List<Account>> getNonActiveAccounts(Authentication authentication){
+		String username = authentication.getName();
+		Manager manager = managerRepository.findByEmail(username).get();
+		Branch branch = branchRepository.findByBranchManager(managerRepository.findById(manager.getId()).get());
 		return ResponseEntity.ok(accountRepository.findByNonActive(branch.getBranchId()));
 	}
 	
@@ -223,8 +243,46 @@ public class BankController {
 		return ResponseEntity.ok(HttpStatus.OK);
 	}
 	
+	
 	//Holder URL's
 	
+	@PostMapping("/api/holder/transfer")
+	public ResponseEntity<HttpStatus> transferMoney(@RequestBody MoneyTransaction transaction) {
+		Account account = accountRepository.findByAccountNumber(transaction.getFromAccount()).get();
+		Optional<Account> toAccount  = accountRepository.findByAccountNumber(transaction.getToAccount());
+		if(account.getBalance()<=transaction.getTransactionAmount()) {
+			logger.info("Low Balance"  + transaction.getFromAccount());
+			return ResponseEntity.ok(HttpStatus.BAD_REQUEST);
+		} else if(!toAccount.isPresent()){
+			    logger.info("Reciver Not Available" + transaction.getToAccount());
+		    	return ResponseEntity.ok(HttpStatus.NOT_FOUND);
+		}
+		Long previousBalance = toAccount.get().getBalance();
+		Long fromBalance = account.getBalance();
+		toAccount.get().setBalance(previousBalance + transaction.getTransactionAmount());
+		account.setBalance(fromBalance-transaction.getTransactionAmount());
+		accountRepository.save(toAccount.get());
+		accountRepository.save(account);
+		transactionRepository.save(transaction);
+		return ResponseEntity.ok(HttpStatus.OK);
+	}
 	
+	@GetMapping("/api/holder/{accountNumber}")
+	public ResponseEntity<List<MoneyTransaction>> getAllTransaction(@PathVariable Long accountNumber) {
+		return ResponseEntity.ok(transactionRepository.findAllTransaction(accountNumber));
+	}
 	
+	@GetMapping("/api/holder/getAccount/{accountNumber}")
+	public ResponseEntity<Account> getAccountDetails(@PathVariable Long accountNumber) {
+		return ResponseEntity.ok(accountRepository.findByAccountNumber(accountNumber).get());
+	}
+	
+	@PostMapping("/api/holder/deposit/{amount}/{accountNumber}")
+	public ResponseEntity<HttpStatus> depositAmount(@PathVariable Long amount,@PathVariable Long accountNumber) {
+		Account account = accountRepository.findByAccountNumber(accountNumber).get();
+		Long balance = account.getBalance();
+		account.setBalance(balance + amount);
+		accountRepository.save(account);
+		return ResponseEntity.ok(HttpStatus.OK);
+	}
 }
